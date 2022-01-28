@@ -1,0 +1,40 @@
+# heights differ for each template. For 2nd additional correlation, first 'time' is picked from detection results and then the stream is trimmed for the 2nd correlation. 
+so if you don't want to pick the first time, then the 2nd correlation result is wrong. 
+
+AUG09 - OCT05
+detection:
+[{'time': UTCDateTime(2020, 10, 5, 5, 3, 9, 528400), 'similarity': 0.91111656196075186, 'template_id': 0}, {'time': UTCDateTime(2020, 10, 5, 5, 7, 31, 688400), 'similarity': 0.87558485215605342, 'template_id': 0}]
+additional correlation: 
+12.5 0.913017581356152
+
+AUG09 - OCT17
+[{'time': UTCDateTime(2020, 10, 17, 21, 19, 12, 848400), 'similarity': 0.94554828249710632, 'template_id': 0}]
+0.5 0.9455032788522536
+
+AUG09 - JAN08
+[{'time': UTCDateTime(2022, 1, 8, 16, 26, 23, 728400), 'similarity': 0.92979757080146352, 'template_id': 0}, {'time': UTCDateTime(2022, 1, 8, 16, 27, 37, 48400), 'similarity': 0.91671944241130299, 'template_id': 0}]
+-0.5 0.9297621766400747
+
+OCT05 - OCT17
+[{'time': UTCDateTime(2020, 10, 17, 21, 19, 0, 308400), 'similarity': 0.82113687552613035, 'template_id': 0}]
+0.5 0.8211272084431285
+
+OCT05 - AUG09
+[{'time': UTCDateTime(2021, 8, 9, 7, 42, 4, 948400), 'similarity': 0.83818968508940594, 'template_id': 0}, {'time': UTCDateTime(2021, 8, 9, 7, 45, 48, 628400), 'similarity': 0.70151832095339683, 'template_id': 0}, {'time': UTCDateTime(2021, 8, 9, 7, 46, 47, 48400), 'similarity': 0.73558116131403561, 'template_id': 0}, {'time': UTCDateTime(2021, 8, 9, 7, 48, 8, 428400), 'similarity': 0.76751034312393873, 'template_id': 0}]
+0.5 0.8381756360260201
+
+OCT05 - JAN08
+[{'time': UTCDateTime(2022, 1, 8, 16, 29, 24, 88400), 'similarity': 0.74721782907022172, 'template_id': 0}]
+-3.5 0.7472747302055082
+
+OCT17 - OCT05
+[{'time': UTCDateTime(2020, 10, 5, 5, 2, 18, 308400), 'similarity': 0.87018835643301762, 'template_id': 0}, {'time': UTCDateTime(2020, 10, 5, 5, 3, 19, 48400), 'similarity': 0.90935297980627638, 'template_id': 0}, {'time': UTCDateTime(2020, 10, 5, 5, 7, 40, 8400), 'similarity': 0.87819379188822311, 'template_id': 0}]
+0.5 0.8701111755240212
+
+OCT17 - AUG09 
+[{'time': UTCDateTime(2021, 8, 9, 7, 45, 45, 248400), 'similarity': 0.85076819833732464, 'template_id': 0}]
+19.5 0.8633599666999577
+
+OCT17 - JAN08
+[{'time': UTCDateTime(2022, 1, 8, 16, 26, 32, 488400), 'similarity': 0.89832000098969911, 'template_id': 0}, {'time': UTCDateTime(2022, 1, 8, 16, 28, 52, 348400), 'similarity': 0.854261108438503, 'template_id': 0}, {'time': UTCDateTime(2022, 1, 8, 16, 29, 49, 528400), 'similarity': 0.91910141812106338, 'template_id': 0}, {'time': UTCDateTime(2022, 1, 8, 16, 30, 36, 48400), 'similarity': 0.85010283510166851, 'template_id': 0}, {'time': UTCDateTime(2022, 1, 8, 16, 32, 54, 388400), 'similarity': 0.8664501792185626, 'template_id': 0}]
+-3.5 0.8983381994638265
