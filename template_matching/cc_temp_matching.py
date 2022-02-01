@@ -21,7 +21,7 @@ event = input("Choose stream to be detected (e.g. OCT05, AUG09):")
 if temp=="OCT05":
     #tracestart = UTCDateTime("2020-10-05 05:02:50") # 2020 October 5 landslide seen at BAE   05:04:12
     tracestart = UTCDateTime("2020-10-05 05:03:19") # 2020 October 5 landslide seen at KNK 05:04:11
-    #tracestart = UTCDateTime("2020-10-05 05:03:18") # 2020 October landslide seen at GLI 05:04:21
+    #tracestart = UTCDateTime("2020-10-05 05:03:18") # 2020 October 5 landslide seen at GLI 05:04:21
 if temp=="OCT17":
     #tracestart = UTCDateTime("2021-10-17 21:18:50") # 2020 October 17 landslide seen at BAE 21:20:12
     tracestart = UTCDateTime("2021-10-17 21:19:04") # 2020 October 17 landslide seen at KNK 21:20:25
