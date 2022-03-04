@@ -30,7 +30,7 @@ s1= UTCDateTime("2021-08-09 07:45:47") # 2021 August landslide seen at BAE 07:46
 
 evlat=61.242 #BA August 9 2021
 evlon=-147.94 #BA August 9 2021
-vel = [i for i in np.arange(2.5,6.0,3.1)]
+vel = [i for i in np.arange(2.5,6.0,0.1)]
 print("Velocities being tested (km/sec):")
 print(vel)
 distlim = 1.0
@@ -44,11 +44,11 @@ stack_power = np.empty((0, 100))
 stack_env_power = np.empty((0, 100))
 nov = len(vel) #number of velocities to be tested 
 ########################################
+inv = client.get_stations(network = "AK", station="*", channel="BHZ", starttime=s1, endtime=s1+endtime)
+net = inv[0]
+nos = len(net) #number of stations in the network
 
 for v in range (nov):
-    inv = client.get_stations(network = "AK", station="*", channel="BHZ", starttime=s1, endtime=s1+endtime)
-    net = inv[0]
-    nos = len(net) #number of stations in the network
     print(vel[v])
     stprev = Stream() #stream to stack
     st = Stream() #initial stream
@@ -62,7 +62,7 @@ for v in range (nov):
       distdeg = dist['distance']
       distm = dist['distancemeters']
       tt = np.divide(float(distm)/1000,float(vel[v])) #calculate the traveltime
-      if distdeg < distlim:
+      if distdeg < distlim and distdeg > 0.01:
          try:
             stprev += client.get_waveforms(network="AK", station=net[s].code, location="*", channel="BHZ", starttime=s1-starttime, endtime=s1+endtime, attach_response=True) #call waveforms that fit the distance criteria, perhaps this step can be avoided in next runs. 
             st += client.get_waveforms(network="AK", station=net[s].code, location="*", channel="BHZ", starttime=s1+tt-starttime, endtime=s1+tt+endtime, attach_response=True) #call waveforms that fit the distance criteria, perhaps this step can be avoided in next runs. 
@@ -91,22 +91,28 @@ for v in range (nov):
     st.filter('bandpass', freqmin=0.01, freqmax=0.05)
     st.remove_response(output='DISP')
     text = (str(vel[v]) + 'km/sec')
+    fig0 = plt.figure()
+    stprev.plot(type="section",plot_dx=20e3, recordstart=trimtime, recordlength=(starttime+endtime-trimtime),
+         time_down=True, linewidth=1.0, grid_linewidth=.25,
+         show=False, fig=fig0)
+    ax = fig0.axes[0]
+    transform = blended_transform_factory(ax.transData, ax.transAxes)
+    for trprev in stprev:
+        ax.text(trprev.stats.distance / 1e3, 1.0, trprev.stats.station, rotation=270,
+                va="bottom", ha="center", transform=transform, zorder=10)
+   # ax.text(0.85, 0.15, text, transform=ax.transAxes, fontsize=10, fontweight='bold', color='blue', verticalalignment='top')
+    fig0.savefig(name + '_ttprev_rec_sctn_' + str(vel[v]) + '_kmsec_mike.png')
     fig1 = plt.figure()
-    nos = len(st)
-    y_min = np.nanmin(st[:]) #for y axis to share same min and max values within all wfs
-    y_max = np.nanmax(st[:])    
-    for s in range(nos):
-        tr = st[s]
-    #    text = (tr.stats.starttime + starttime)
-        text = (tr.stats.station + '.' + tr.stats.channel)
-        ax1 = fig1.add_subplot(nos, 1,s+1)
-        ax1.plot(tr.times(), tr.data, "k-", linewidth=0.8)
-        ax1.set_xlim(xmin=0, xmax=starttime+endtime)
-        ax1.text(0.84, 0.85, text, transform=ax1.transAxes, fontsize=8, fontweight='bold', verticalalignment='top')
-        ax1.set_ylim(ymin=y_min, ymax=y_max)
-        ax1.set_ylabel('Displacement')
-    #    ax1.axvline(starttime, lw=0.8, c='darkblue', ls='--', label='event onset on BAE')
-    fig1.savefig(name + '_ttcorr_' + str(vel[v]) + '_kmsec_mike.png')
+    st.plot(type="section",plot_dx=20e3, recordstart=trimtime, recordlength=(starttime+endtime-trimtime),
+      time_down=True, linewidth=.75, grid_linewidth=.25,
+      show=False, fig=fig1)
+    ax1 = fig1.axes[0]
+    transform = blended_transform_factory(ax1.transData, ax1.transAxes)
+    for tr in st:
+       ax1.text(tr.stats.distance / 1e3, 1.0, tr.stats.station, rotation=270,
+           va="bottom", ha="center", transform=transform, zorder=10)
+    ax1.text(0.85, 0.10, text, transform=ax1.transAxes, fontsize=10, fontweight='bold', color='blue', verticalalignment='top')
+    fig1.savefig(name + '_ttcorr_rec_sctn_' + str(vel[v]) + '_kmsec_mike.png')
     st.normalize() #normalizing all traces separately to their respective abs maximum
     ststack = st.stack(npts_tol=1) #stack traces
     maxpower = np.max(np.abs(ststack[0].data)) #max of the abs value of the stack
@@ -132,24 +138,6 @@ for v in range (nov):
     fig3.savefig(name + '_stack_' + str(vel[v]) + '_kmsec_disp_mike.png')
     ststack.write(name + '_stack_' + str(vel[v]) + '_kmsec_mike.mseed', format="MSEED")  
 
-fig0 = plt.figure()
-print(stprev)
-nosp = len(stprev)
-for s in range(nosp):
-    trp = stprev[s]
-#    text = (tr.stats.starttime + starttime)
-    text2 = (trp.stats.station + '.' + trp.stats.channel)
-    ax0 = fig0.add_subplot(nos, 1,s+1)
-    ax0.plot(trp.times(), trp.data, "k-", linewidth=0.8)
-    ax0.set_xlim(xmin=0, xmax=starttime+endtime)
-    ax0.text(0.84, 0.85, text2, transform=ax0.transAxes, fontsize=8, fontweight='bold', verticalalignment='top')
-    #a01.set_ylim(ymin=y_min2, ymax=y_max2)
-    ax0.set_ylabel('Displacement')
-#    ax1.axvline(starttime, lw=0.8, c='darkblue', ls='--', label='event onset on BAE')
-#ylimits = ax0.get_ylim()
-#ax0.set_ylim(ymin=ylimits[0], ymax=ylimits[1])
-fig0.savefig(name + '_ttprev_' + str(vel[v]) + '_kmsec_mike.png')
-stprev.write(name + '_stack_prev' + str(vel[v]) + '_mike.mseed', format="MSEED")  
 ########################################
 #FIGURES
 #print(ststackvel)
