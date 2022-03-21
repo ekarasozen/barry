@@ -32,8 +32,8 @@ def plotRecordSection(st,distance_array,name,vel):
        st[s].stats.distance = distance_array[s]
     st.sort(keys=['distance'])
     fig0 = plt.figure()
-    st.plot(type="section",plot_dx=20e3, 
-      time_down=True, linewidth=.75, grid_linewidth=.25,
+    st.plot(type="section", 
+      time_down=True, linewidth=.75, grid_linewidth=.25, orientation='vertical',
       show=False, fig=fig0)
     ax0 = fig0.axes[0]
     transform = blended_transform_factory(ax0.transData, ax0.transAxes)
@@ -41,8 +41,9 @@ def plotRecordSection(st,distance_array,name,vel):
        ax0.text(tr.stats.distance / 1e3, 1.0, tr.stats.station, rotation=270,
            va="bottom", ha="center", transform=transform, zorder=10)
     plot_name = "after_ttcorr_"
-    text = (str(vel) + 'km/sec')
-    ax0.text(0.85, 0.10, text, transform=ax0.transAxes, fontsize=10, fontweight='bold', color='blue', verticalalignment='top')        
+    ###ax0.set_xlim(100, 550) 
+   # text = (str(vel) + 'km/sec')
+  # ax0.text(0.85, 0.10, text, transform=ax0.transAxes, fontsize=10, fontweight='bold', color='blue', verticalalignment='top')        
     fig0.savefig(name + plot_name + str(vel) + '.png')    
     
 

@@ -6,6 +6,7 @@ from obspy.clients.iris import Client
 client_distaz = Client()
 import os
 import functions as func
+import functions_new as func_new
 import numpy as np
 from obspy import UTCDateTime 
 from obspy import Stream
@@ -15,21 +16,21 @@ from matplotlib.transforms import blended_transform_factory
 from obspy.clients.fdsn.header import FDSNNoDataException
 
 
-#name = "BA_2020_OCT5_"
-name = "BA_2021_Aug9"
+name = "BA_2020_OCT5_deneme"
+#name = "BA_2021_Aug9_deneme"
 #name = "Taan_Fjord"
 #s1 = UTCDateTime("2015-10-18 05:19:00") #  Taan Fjord
-#s1 = UTCDateTime("2020-10-05 05:02:50") # 2020 October 5 landslide seen at BAE ends roughly around 05:04:12
-s1= UTCDateTime("2021-08-09 07:45:47") # 2021 August landslide seen at BAE 07:46:37
+s1 = UTCDateTime("2020-10-05 05:02:50") # 2020 October 5 landslide seen at BAE ends roughly around 05:04:12
+#s1= UTCDateTime("2021-08-09 07:45:47") # 2021 August landslide seen at BAE 07:46:37
 #evlat=60.175 #Taan Fjord
 #evlon=-141.187 #Taan Fjord
-#evlat=61.153 #BA October 5 2020
-#evlon=-148.163 #BA October 5 2020
-evlat=61.242 #BA August 9 2021
-evlon=-147.94 #BA August 9 2021
+evlat=61.153 #BA October 5 2020
+evlon=-148.163 #BA October 5 2020
+#evlat=61.242 #BA August 9 2021
+#evlon=-147.94 #BA August 9 2021
 
 
-vel = [i for i in np.arange(2.5,6.0,0.1)]
+vel = [i for i in np.arange(3.4,6.0,5.1)]
 starttime = (60*2)
 endtime = 60*5
 nov = len(vel) #number of velocities to be tested 
@@ -44,12 +45,14 @@ for v in range (nov):
     stcorr = Stream() #stream to stack
     distance = np.empty((0, 100))
     traveltime = np.empty((0,100))
+    azimuth = np.empty((0, 100))    
     for s in range(nos):
         stalat=net[s].latitude
         stalon=net[s].longitude
         dist=client_distaz.distaz(stalat,stalon,evlat,evlon) 
         distdeg = dist['distance']
         distm = dist['distancemeters']
+        azim = dist['azimuth']*1000
         tt = np.divide(float(distm)/1000,float(vel[v])) #calculate the traveltime
 #       if distdeg < distlim:
         if distdeg < distlim and distdeg > 0.02:
@@ -60,6 +63,7 @@ for v in range (nov):
                 continue
             distance = np.append(distance, [distm]) #distances are saved in meters
             traveltime = np.append(traveltime, [tt]) #save to traveltime table
+            azimuth = np.append(azimuth, [azim]) #distances are saved in meters
         else: #ignore the stations at further distances > distlim
       	    continue
     st.detrend("linear")
@@ -75,7 +79,8 @@ for v in range (nov):
        st[t].trim((s1-starttime+np.around(traveltime[t],2)),(np.around(maxtt-traveltime[t],2)))
        st[t].stats.starttime = st[t].stats.starttime-traveltime[t] # this is needed for record section. not for the stacking
     st.write(name + 'after_' + str(vel[v]) + '.mseed', format="MSEED")  
-    func.plotRecordSection(st,distance,name,vel[v]) #record section plot after tt correction
+    #func.plotRecordSection(st,distance,name,vel[v]) #record section plot after tt correction
+    func_new.plotRecordSection(st,azimuth,name,vel[v]) #record section plot after tt correction
     #STACK
     st.normalize()
     npts_all = [len(tr) for tr in st]
