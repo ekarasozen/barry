@@ -6,30 +6,23 @@ from obspy.clients.iris import Client
 from obspy import UTCDateTime
 from obspy.clients.fdsn.header import FDSNNoDataException
 import numpy as np
-#network = "AK"
-#station = "BAE,BAT,KNK"
-#location = "*"
-#channel = "*"
 
-def makestalistIris(network,station,channel,location):
-    stalist = np.empty((7, 100))
-    inv = client.get_stations(network=network,station=station,channel=channel,location=location,level='response')
-    stn = inv[0] #stations
-    nos = len(stn)
-    chn = stn[0] #channels
-    noc = len(chn)
-    for s in range(nos):
-        net = inv[0].code
-        sta = stn[s].code
-        stalat = stn[s].latitude
-        stalon = stn[s].longitude
-        staelv = stn[s].elevation
-        for c in range(noc):
-           cha = chn[c].code
-           loc = chn[c].location_code
-           stalist = np.append(stalist, [stalat]) #save to traveltime table 
-           #stalist = sta,stalat,stalon,staelv,cha,loc,net
-           np.savetxt('stalist.out', stalist, delimiter=',',newline='\n')
-
-  #  return inv
-
+def makestalistIris(network,station,channel,location,datetime):
+    starttime = UTCDateTime(datetime)  #this is necessary to avoid multiple channels/location codes due to station lat/long changes over time
+    inv = client.get_stations(network=network,station=station,channel=channel,location=location,starttime=starttime,level='response')
+    noi = len(inv) #number of networks
+    for i in range(noi):    
+        net = inv[i]
+        netcod = inv[i].code
+        nos = len(net)  #number of stations in each network
+        for s in range(nos):
+            stacod=net[s].code 
+            stalat=net[s].latitude
+            stalon=net[s].longitude
+            staelv=net[s].elevation
+            chn = net[s] #number of channels in each station
+            noc = len(chn)
+            for c in range(noc):
+               cha = chn[c].code
+               loc = chn[c].location_code
+               print(netcod,",",stacod,",",cha,",",loc,",",stalat,",",stalon,",",staelv)
