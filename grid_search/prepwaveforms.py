@@ -11,7 +11,6 @@ import pandas as pd
 from obspy import Stream
 from obspy import Trace
 from obspy.clients.fdsn.header import FDSNNoDataException
-from obspy.core import compatibility
 
 
 def prepwaveformsIris(stnlist,datetime,duration):
@@ -22,10 +21,9 @@ def prepwaveformsIris(stnlist,datetime,duration):
     print(df)
     nos = len(df) #number of stations
     network = df['network']
-    station = df['network']
+    station = df['station']
     location = df['location']
     channel = df['channel']
-    station = df['station']
     for s in range(nos):
         try:
             st += client.get_waveforms(network=network[s], station=station[s], location=location[s], channel=channel[s], starttime=s1, endtime=s1+duration, attach_response=True)
