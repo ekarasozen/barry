@@ -13,6 +13,7 @@ def makestalistIris(network,station,channel,location,datetime):
     starttime = UTCDateTime(datetime)  #this is necessary to avoid multiple channels/location codes due to station lat/long changes over time
     inv = client.get_stations(network=network,station=station,channel=channel,location=location,starttime=starttime,level='response')
     noi = len(inv) #number of networks
+    print(inv)
     for i in range(noi):
         net = inv[i]
         netcod = inv[i].code
@@ -29,7 +30,8 @@ def makestalistIris(network,station,channel,location,datetime):
                cha = chn[c].code
                loc = chn[c].location_code
             data = netcod,stacod,cha,loc,stalat,stalon,staelv
-            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations. if only one network is used, then no need for this. 
-    #display(df)
+            df.loc[s] = data 
+#            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations. if only one network is used, then no need for this. 
+    display(df)
     df.to_csv('stalist.csv')
 
