@@ -10,7 +10,7 @@ import pandas as pd
 df =  pd.DataFrame(columns = ['network','station','channel','location','latitude','longitude','elevation'])
 
 def makestalistIris(network,station,channel,location,datetime):
-    starttime = UTCDateTime(datetime)  #this is necessary to avoid multiple channels/location codes due to station lat/long changes over time
+    starttime = UTCDateTime(datetime)  
     inv = client.get_stations(network=network,station=station,channel=channel,location=location,starttime=starttime,level='response')
     noi = len(inv) #number of networks
     print(inv)
@@ -31,7 +31,6 @@ def makestalistIris(network,station,channel,location,datetime):
                loc = chn[c].location_code
             data = netcod,stacod,cha,loc,stalat,stalon,staelv
             df.loc[s] = data 
-#            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations. if only one network is used, then no need for this. 
+#            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations if more than one network is needed. 
     display(df)
-    df.to_csv('stalist.csv')
-
+    df.to_csv('stalist.csv',index=False)

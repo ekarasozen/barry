@@ -56,3 +56,6 @@ def prepwaveformsIris(stnlist,datetime,duration):
 #gap filling? 
 #resampling?
 # do we need to hardwire these or leave these options to the user? 
+#add check whether all traces have same sampling rate. and length
+# trimming trace could work for starttime issue
+# gap filling, 
