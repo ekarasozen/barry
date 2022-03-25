@@ -12,13 +12,6 @@ import pandas as pd
 from obspy import Stream
 from obspy import Trace
 
-#DO WE NEED THIS OR OBSPTS DISTAZ IS ENOUGH?
-def distance_2d(x_point, y_point, x, y):
-    return np.hypot(x-x_point, y-y_point)
-
-def geodistance_2d(x_point, y_point, x, y):
-    return client_distaz.distaz(x-x_point, y-y_point)
-
 
 def createGrid(lon_min,lon_max,lon_num,lat_min,lat_max,lat_num,wavespeed,stnlist):
     df = pd.read_csv(stnlist,index_col=0,keep_default_na=False)
@@ -33,7 +26,6 @@ def createGrid(lon_min,lon_max,lon_num,lat_min,lat_max,lat_num,wavespeed,stnlist
     distance = np.empty((0, 100))
     traveltime = np.empty((0,100))
     for s in range(nos):
-     ###   distances = distance_2d(stalat[s], stalon[s], xx, yy )  # OR?
         dist=client_distaz.distaz(stalat[s],stalon[s],xx,yy) 
         print(distances) 
         distdeg = dist['distance']
