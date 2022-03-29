@@ -17,7 +17,7 @@ def prepwaveformsIris(stnlist,datetime,duration):
     s1 = UTCDateTime(datetime)  
     print(s1)
     st = Stream() #initial stream
-    df = pd.read_csv(stnlist,index_col=None,keep_default_na=False)
+    df = pd.read_csv(stnlist,index_col=0,keep_default_na=False)
     print(df)
     nos = len(df) #number of stations
     network = df['network']
