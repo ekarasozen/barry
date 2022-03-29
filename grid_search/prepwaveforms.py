@@ -11,27 +11,32 @@ import pandas as pd
 from obspy import Stream
 from obspy import Trace
 from obspy.clients.fdsn.header import FDSNNoDataException
+from obspy import read, read_inventory
 
 
 def prepwaveformsIris(stnlist,datetime,duration):
     s1 = UTCDateTime(datetime)  
     print(s1)
     st = Stream() #initial stream
-    df = pd.read_csv(stnlist,index_col=0,keep_default_na=False)
+    df = pd.read_csv(stnlist,index_col=None,keep_default_na=False)
     print(df)
     nos = len(df) #number of stations
     network = df['network']
     station = df['station']
     location = df['location']
     channel = df['channel']
+    inv = read_inventory("station.xml")  
+    net = inv[0]
+    print(net[0])
     for s in range(nos):
         try:
             st += client.get_waveforms(network=network[s], station=station[s], location=location[s], channel=channel[s], starttime=s1, endtime=s1+duration, attach_response=True)
-#            st.remove_response(output='DISP')
         except FDSNNoDataException:
             print('No data available for request. Creating a blank trace for this station: ' + station[s])
             tr = Trace()
+            tr.attach_response(inv)
             tr.stats.starttime=s1 #DIFFERENT STARTTIMES?
+            print(tr.stats.response)
             tr.stats.network = network[s] 
             tr.stats.station = station[s] #or XXX?
             tr.stats.location = location[s]
@@ -39,7 +44,7 @@ def prepwaveformsIris(stnlist,datetime,duration):
             tr.stats.sampling_rate = 50 #?
             print(tr.stats)
             tr.stats.npts=duration*tr.stats.sampling_rate
-            tr.trim(tr.stats.starttime,tr.stats.endtime)
+#            tr.trim(s1,tr.stats.endtime-0.02)
             st += tr            
     print(st)
     st.detrend("linear")
@@ -48,7 +53,7 @@ def prepwaveformsIris(stnlist,datetime,duration):
     st.filter('bandpass', freqmin=0.01, freqmax=0.05)
    # st.remove_response(output='DISP') #this is a problem when data is not available
     st.write('readytostack.mseed', format="MSEED")  
-
+    st.plot()
 
 #REMAINING
 #If data is not available for one of the sta_file rows, we should probably include a trace of zeros(?) 
@@ -56,7 +61,5 @@ def prepwaveformsIris(stnlist,datetime,duration):
 #required before stacking (gap filling, detrending, filtering, resampling, …)
 #gap filling? 
 #resampling?
-# do we need to hardwire these or leave these options to the user? 
 #add check whether all traces have same sampling rate. and length
-# trimming trace could work for starttime issue
 # gap filling, 

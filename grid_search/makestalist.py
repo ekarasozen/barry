@@ -19,7 +19,6 @@ def makestalistIris(network,station,channel,location,datetime):
         netcod = inv[i].code
         nos = len(net)  #number of stations in each network
         for s in range(nos):
-           # print(s)
             stacod=net[s].code 
             stalat=net[s].latitude
             stalon=net[s].longitude
@@ -34,3 +33,4 @@ def makestalistIris(network,station,channel,location,datetime):
 #            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations if more than one network is needed. 
     display(df)
     df.to_csv('stalist.csv',index=False)
+    inv.write("station.xml",format="STATIONXML") #need in prepwaveforms to attach response to blank races
