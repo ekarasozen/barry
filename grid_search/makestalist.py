@@ -13,7 +13,7 @@ def makestalistIris(network,station,channel,location,datetime):
     starttime = UTCDateTime(datetime)  
     inv = client.get_stations(network=network,station=station,channel=channel,location=location,starttime=starttime,level='response')
     noi = len(inv) #number of networks
-    print(inv)
+  #  print(inv)
     for i in range(noi):
         net = inv[i]
         netcod = inv[i].code
@@ -23,14 +23,14 @@ def makestalistIris(network,station,channel,location,datetime):
             stalat=net[s].latitude
             stalon=net[s].longitude
             staelv=net[s].elevation
-            chn = net[s] #number of channels in each station
-            noc = len(chn)
+            chn = net[s] 
+            noc = len(chn) #number of channels in each station
             for c in range(noc):
                cha = chn[c].code
                loc = chn[c].location_code
             data = netcod,stacod,cha,loc,stalat,stalon,staelv
             df.loc[s] = data 
 #            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations if more than one network is needed. 
-    display(df)
-    df.to_csv('stalist.csv',index=False)
-    inv.write("station.xml",format="STATIONXML") #need in prepwaveforms to attach response to blank races
+    print(df)
+    df.to_csv('stafile.csv',index=False)
+   # inv.write("station.xml",format="STATIONXML") #need in prepwaveforms to attach response to blank races
