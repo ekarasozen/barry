@@ -27,9 +27,9 @@ def createttGrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
     distgrid = np.zeros((len(xx[0]), len(yy), nos)) #longitude rows are needed, latitude columns
     ttgrid = np.zeros((len(xx[0]), len(yy), nos))
     for s in range(nos):
-        for i in range(len(xx)):
+        for i in range(len(xx[0])):
             for j in range(len(yy)):
-                dist=client_distaz.distaz(stalat[s],stalon[s],yy[j,i],xx[j,i])                 
+                dist=client_distaz.distaz(stalat[s],stalon[s],yy[j,i],xx[j,i])    
                 distdeg = dist['distance']
                 distm = dist['distancemeters']
                 distkm = float(distm)/1000

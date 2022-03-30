@@ -17,17 +17,43 @@ import matplotlib.pyplot as plt
 
 def shiftStack(ttgridfile,wfs):
     ttgrid = np.load(ttgridfile)
-    print(ttgrid.shape)
-    st = read(wfs)
-    print(st)
+    lonlen = ttgrid.shape[0]
+    latlen = ttgrid.shape[1]
+    stacked_strength = np.zeros((lonlen, latlen)) 
+    for i in range(lonlen):
+        for j in range(latlen):
+            st = Stream() #initial stream
+            st = read(wfs)
+            nos = len(st) #number of stations in the stream
+            for s in range(nos):
+                maxtt = np.max(ttgrid[i,j,:])
+                st[s].trim((st[s].stats.starttime+np.around(ttgrid[i,j,s],2)),(np.around(maxtt-ttgrid[i,j,s],2))) #does maxtt needed???
+            st.normalize()
+            npts_all = [len(tr) for tr in st]
+            npts = min(npts_all)
+            data = np.array([tr.data[:npts] for tr in st])
+            stack = np.mean(data, axis=0)
+            trs = Trace() #save stack as a trace
+            trs.data=stack
+            trs.stats.starttime=st[0].stats.starttime 
+            trs.stats.station = "STCK"
+            trs.stats.sampling_rate = 50 
+            st += trs
+#           print(st)            
+            st.write('stacked_wfs_' + str(i) + str(j) + '.mseed', format="MSEED")  
+#           np.savetxt(name + 'stack_' + str(vel[v]) + '.out', stack, delimiter=',')
+            maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
+            stacked_strength[i,j] = maxpower #save to traveltime table
+    np.save("stacked_strengthfile", stacked_strength)  
+    np.savetxt("stacked_strengthfile", stacked_strength,delimiter=',', newline="\n")  
+
+
+
+
 
 #output
-#stacked_strength:     A grid of the stack strength
-#at each potential source location. This matrix will be size i x j. 
 #stacked_location:     lon,lat,stack strength, and 
 #error for the grid point with the maximum stack strength. This is the presumed source location. It may be wise to output this into a file so that the values can be called later by other functions??
-#stacked_wfs:          an obspy stream of length k+1 
-#containing the k waveforms that have been time-shifted to correspond to the stack_location. The last trace in the stream is the stacked waveform itself. This will be needed later by plotting routines. 
 
 
 #description
