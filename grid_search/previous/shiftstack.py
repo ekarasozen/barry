@@ -15,10 +15,11 @@ from obspy import Trace
 import matplotlib.pyplot as plt
 
 
-def shiftStack(ttgridfile,wfs):
+def shiftStack(ttgridfile,wfs,lonlatgridfile): #NEED TO CHECK LAT/LON/TTGRID index positions. 
     ttgrid = np.load(ttgridfile)
     lonlen = ttgrid.shape[0]
     latlen = ttgrid.shape[1]
+    lonlatgrid = np.load(lonlatgridfile)
     stacked_strength = np.zeros((lonlen, latlen)) 
     for i in range(lonlen):
         for j in range(latlen):
@@ -44,9 +45,16 @@ def shiftStack(ttgridfile,wfs):
 #           np.savetxt(name + 'stack_' + str(vel[v]) + '.out', stack, delimiter=',')
             maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
             stacked_strength[i,j] = maxpower #save to traveltime table
-    np.save("stacked_strengthfile", stacked_strength)  
+    maxpowerall = np.max(np.abs(stacked_strength))
+    maxinx=np.where(stacked_strength == maxpowerall)
+    cordinx = list(zip(maxinx[0], maxinx[1]))
+    for cord in cordinx:
+        evlat = lonlatgrid[0][cord]
+        evlon = lonlatgrid[1][cord]
+    stacked_location=evlat,evlon,maxpowerall
+    np.save("stacked_strengthfile", stacked_strength)
     np.savetxt("stacked_strengthfile", stacked_strength,delimiter=',', newline="\n")  
-
+    np.save("stacked_locfile", stacked_location)
 
 
 
