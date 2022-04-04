@@ -127,12 +127,15 @@ def prepwaveforms(stafile,datetime,duration):
 ####################################################################################################################################################################################
 
 
-def shiftstack(ttgridfile,before_stack_wfs,lonlatgridfile): #NEED TO CHECK LAT/LON/TTGRID index positions. 
+def shiftstack(ttgridfile,before_stack_wfs,lonlatgridfile):
+    df =  pd.DataFrame(columns = ['latitude','longitude','spower'])
     ttgrid = np.load(ttgridfile)
     lonlen = ttgrid.shape[0]
     latlen = ttgrid.shape[1]
     lonlatgrid = np.load(lonlatgridfile)
     stacked_strength = np.zeros((lonlen, latlen)) 
+    maxpowerall = 0
+    stmaxpower = Stream() #initial stream to store max power stack
     for i in range(lonlen):
         for j in range(latlen):
             st = Stream() #initial stream
@@ -141,6 +144,7 @@ def shiftstack(ttgridfile,before_stack_wfs,lonlatgridfile): #NEED TO CHECK LAT/L
             for s in range(nos):
                 maxtt = np.max(ttgrid[i,j,:])
                 st[s].trim((st[s].stats.starttime+np.around(ttgrid[i,j,s],2)),(np.around(maxtt-ttgrid[i,j,s],2))) #does maxtt needed???
+                st[s].stats.starttime = st[s].stats.starttime-ttgrid[i,j,s] # this is needed for record section. not for the stacking
             st.normalize()
             npts_all = [len(tr) for tr in st]
             npts = min(npts_all)
@@ -152,18 +156,24 @@ def shiftstack(ttgridfile,before_stack_wfs,lonlatgridfile): #NEED TO CHECK LAT/L
             trs.stats.station = "STCK"
             trs.stats.sampling_rate = 50 
             st += trs
-#           print(st)            
-            st.write('stacked_wfs_' + str(i) + str(j) + '.mseed', format="MSEED")  
-#           np.savetxt(name + 'stack_' + str(vel[v]) + '.out', stack, delimiter=',')
             maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
             stacked_strength[i,j] = maxpower #save to traveltime table
-    maxpowerall = np.max(np.abs(stacked_strength))
+            if maxpower > maxpowerall:
+               stmaxpower = st.copy()
+               maxpowerall = maxpower
+            else: 
+               continue
+    stmaxpower.write('best_stack_wfs.mseed', format="MSEED")  
+    #maxpowerall = np.max(np.abs(stacked_strength))
+    print(maxpowerall)
     maxinx=np.where(stacked_strength == maxpowerall)
     cordinx = list(zip(maxinx[0], maxinx[1]))
     for cord in cordinx:
         evlat = lonlatgrid[0][cord]
         evlon = lonlatgrid[1][cord]
     stacked_location=evlat,evlon,maxpowerall
+    df.loc[0] = stacked_location 
+    print(df)
+    df.to_csv('stacked_locfile.csv',index=False)
     np.save("stacked_strengthfile", stacked_strength)
     np.savetxt("stacked_strengthfile", stacked_strength,delimiter=',', newline="\n")  
-    np.save("stacked_locfile", stacked_location)

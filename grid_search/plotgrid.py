@@ -29,7 +29,7 @@ def plotGrid(lonlatgridfile,stacked_strengthfile):
     print(abs(stacked_strength).max())
     minamp = 0
  #  #t, f = np.meshgrid(st[0].times("matplotlib"), freqs)
-    im1 = ax1.pcolormesh(xx,yy, np.transpose(stacked_strength))
+    im1 = ax1.pcolormesh(xx,yy, np.transpose(stacked_strength),shading='nearest')
     #ax1.set_ylabel('freq. (Hz)')
     #ax1.set_xlim(timevector[0], timevector[-1])
     #ax1.set_ylim(freqs[-1], freqs[0])

@@ -20,13 +20,9 @@ import matplotlib.gridspec as gridspec
 #Function to create time-shifted distance and azimuth record sections and compare these to the stacked waveform.
 #Inputs: wfs, sta_file, stacked_location, stacked_strength why do we need stacked_strength? 
 
-#best mseed strength. not sure what is the best way to do this? ask mike perhaps
-#figure out to turn azimuth over, and both. this is easy, just rename the axis title. could be done internally perhaps? 
-#I need to do the starttime I think. I guess so. 
 #need to figure out the error location thing. 
 #plotgrid is working but not perfect. need to make sure grid locs are ok
 #then pygmt
-
 
 
 
@@ -41,20 +37,23 @@ def plotRecordSection(wfs,mseed,stafile,stacked_locfile):
     station = df['station']
     stalat = df['latitude']
     stalon = df['longitude']
-    cord = np.load(stacked_locfile)
-    evlat = cord[0]
-    evlon = cord[1]
+    evdf = pd.read_csv(stacked_locfile,index_col=None,keep_default_na=False)
+    evlat = evdf['latitude']
+    evlon = evdf['longitude']
     for s in range(nos):
-        dist = client_distaz.distaz(stalat[s],stalon[s],evlat,evlon) 
+        dist = client_distaz.distaz(stalat[s],stalon[s],evlat[0],evlon[0]) 
         distdeg = dist['distance'] 
         distm = dist['distancemeters'] 
         azim = dist['azimuth']*1000 #this is the hacked section to plot azimuth as distance in record section
         st[s].stats.distance = distm #distances are saved in meters 
         stdist[s].stats.distance = distm #distances are saved in meters 
         stazim[s].stats.distance = azim #if you want azimuth to be plotted. 
+    stdist[-1].stats.distance = 0 #to be able to plot the stack
+    stazim[-1].stats.distance = 0 #to be able to plot the stack
     st.sort(keys=['distance'])
-    stdist[:-1].sort(keys=['distance'])
-    stazim[:-1].sort(keys=['distance'])
+    stdist.sort(keys=['distance'])
+    stazim.sort(keys=['distance'])
+    print(stazim)
     fig = plt.figure(figsize=(4, 8))
     gs1 = gridspec.GridSpec(3, 1)
     gs1.update(wspace=0.01, hspace=0.5) # set the spacing between axes. 
@@ -66,19 +65,20 @@ def plotRecordSection(wfs,mseed,stafile,stacked_locfile):
        ax0.text(tr.stats.distance / 1e3, 1.0, tr.stats.station, rotation=270,va="bottom", ha="center", transform=transform, zorder=10)
     ax0.set_xlabel('Distance (km)') 
     ax0.set_title('BEFORE')
+    ax0.set_xlim(0)
     ###PLOT AFTER DISTANCE   
     ax1 = fig.add_subplot(gs1[1])
-    stdist[:-1].plot(type="section",time_down=True, linewidth=.75, grid_linewidth=.25, orientation='vertical',show=False, fig=fig)
+    stdist.plot(type="section",time_down=True, linewidth=.75, grid_linewidth=.25, orientation='vertical',show=False, fig=fig)
     transform = blended_transform_factory(ax1.transData, ax1.transAxes)
-    for tr in stdist[:-1]:
+    for tr in stdist:
        ax1.text(tr.stats.distance / 1e3, 1.0, tr.stats.station, rotation=270,va="bottom", ha="center", transform=transform, zorder=10)
     ax1.set_xlabel('Distance (km)') 
     ax1.set_title('AFTER')
    ###PLOT AFTER AZIMUTH   
     ax2 = fig.add_subplot(gs1[2])
-    stazim[:-1].plot(type="section",time_down=True, linewidth=.75, grid_linewidth=.25, orientation='vertical',show=False, fig=fig)
+    stazim.plot(type="section",time_down=True, linewidth=.75, grid_linewidth=.25, orientation='vertical',show=False, fig=fig)
     transform = blended_transform_factory(ax2.transData, ax2.transAxes)
-    for tr in stazim[:-1]:
+    for tr in stazim:
        ax2.text(tr.stats.distance / 1e3, 1.0, tr.stats.station, rotation=270,va="bottom", ha="center", transform=transform, zorder=10)    
     ax2.set_xlabel('Azimuth [°]')
     ###ax0.set_xlim(100, 550) 
