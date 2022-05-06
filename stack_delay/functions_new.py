@@ -28,6 +28,7 @@ def getStationsIris(network,station,channel,starttime,endtime):
 
 def plotRecordSection(st,distance_array,name,vel):
     nos = len(st)
+    print(nos)
     for s in range(nos): 
        st[s].stats.distance = distance_array[s]
     st.sort(keys=['distance'])

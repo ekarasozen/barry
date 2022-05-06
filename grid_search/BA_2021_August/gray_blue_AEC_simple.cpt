@@ -1,0 +1,16 @@
+# This is the simplified AEC bathymetry. No real detail bathymetrically, lots topographically. 
+#  Bathymetry is plotted in blue/grey shades and 
+#  topography is gray shaded
+-11000 	114 124 135    -2000   	114 124 135
+-2000   132 141 151    -1000    132 141 151
+-1000   141 148 155    -200    	141 148 155
+-200    145 151 157    0  	145 151 157
+0		234	234	234		500		234	234	234
+500		225	225	225		1000	225	225	225
+1000	215	215	215		3000	215	215	215
+3000	197	197	197		5000	197	197	197
+5000	180	180	180		7000	180	180	180
+
+B	255	255	255
+F	0	0	0
+N	128	128	128

@@ -16,25 +16,52 @@ from matplotlib.transforms import blended_transform_factory
 from obspy.clients.fdsn.header import FDSNNoDataException
 
 
-name = "BA_2020_OCT5_deneme"
+#name = "BA_2020_OCT5_deneme"
 #name = "BA_2021_Aug9_deneme"
 #name = "Taan_Fjord"
-#s1 = UTCDateTime("2015-10-18 05:19:00") #  Taan Fjord
-s1 = UTCDateTime("2020-10-05 05:02:50") # 2020 October 5 landslide seen at BAE ends roughly around 05:04:12
+#name = "Hubbard"
+#name = "Wrangell"
+#name="Orville"
+#name="Lamplugh"
+#name="Red"
+#name="LaPerouse"	
+name="Fairweather"	
+#s1 = UTCDateTime("2015-10-18 05:18:48") #  Taan Fjord 05:18:48
+#s1 = UTCDateTime("2012-05-21 14:25:00") #  Hubbard landslide 14:25:32
+#s1 = UTCDateTime("2013-07-25 10:14:56") #  Wrangell landslide 10:14:56
+#s1 = UTCDateTime("2015-03-07 19:19:07") # Orville-Wilbur landslide
+#s1 = UTCDateTime("2016-06-28 16:26:06") # Lamplugh Glacier 
+#s1 = UTCDateTime("2016-05-22 07:57:34") #Red Glacier
+#s1 = UTCDateTime("2016-02-16 14:24:44") #Mount LaPerouse
+s1 = UTCDateTime("2016-09-05 04:38:35") #Fairweather AEC#3
+#s1 = UTCDateTime("2020-10-05 05:02:50") # 2020 October 5 landslide seen at BAE ends roughly around 05:04:12
 #s1= UTCDateTime("2021-08-09 07:45:47") # 2021 August landslide seen at BAE 07:46:37
 #evlat=60.175 #Taan Fjord
 #evlon=-141.187 #Taan Fjord
-evlat=61.153 #BA October 5 2020
-evlon=-148.163 #BA October 5 2020
+#evlat=61.153 #BA October 5 2020
+#evlon=-148.163 #BA October 5 2020
 #evlat=61.242 #BA August 9 2021
 #evlon=-147.94 #BA August 9 2021
+#evlat=60.0821 #hubbard
+#evlon=-139.536 #hubbard
+#evlat=61.9845 #wrangell
+#evlon=-143.1683 #wrangell
+#evlat=58.736 #Orville-Wilbur
+#evlon=-137.272 #Orville-Wilbur
+#evlat=58.77918 #Lamplugh
+#evlon=-136.88827 #Lamplugh
+#evlat=60.0277 #Red Glacier
+#evlon=-153.0749 #Red Glacier
+#evlat=58.561046 #Mount LaPerouse
+#evlon=-137.07371 #Mount LaPerouse
 
-
-vel = [i for i in np.arange(3.4,6.0,5.1)]
+evlat=58.9393 #Fairweather AEC#3
+evlon= -137.4845 #Fairweather AEC#3
+vel = [i for i in np.arange(2.5,6.0,0.1)]
 starttime = (60*2)
 endtime = 60*5
 nov = len(vel) #number of velocities to be tested 
-distlim = 1.0
+distlim = 2
 stack_power = np.empty((0, 100))
 for v in range (nov):
     print(vel[v])
@@ -54,8 +81,8 @@ for v in range (nov):
         distm = dist['distancemeters']
         azim = dist['azimuth']*1000
         tt = np.divide(float(distm)/1000,float(vel[v])) #calculate the traveltime
-#       if distdeg < distlim:
-        if distdeg < distlim and distdeg > 0.02:
+        if distdeg < distlim:
+#        if distdeg < distlim and distdeg > 0.5:
             try:
                 st += func.getEventsIRIS("AK",net[s].code,"*","BHZ",s1-starttime,s1+endtime) 
             except FDSNNoDataException: #if a station is not available
@@ -66,6 +93,7 @@ for v in range (nov):
             azimuth = np.append(azimuth, [azim]) #distances are saved in meters
         else: #ignore the stations at further distances > distlim
       	    continue
+    print(st)
     st.detrend("linear")
     st.detrend("demean")
     st.taper(max_percentage=0.05, type='cosine')
@@ -79,8 +107,8 @@ for v in range (nov):
        st[t].trim((s1-starttime+np.around(traveltime[t],2)),(np.around(maxtt-traveltime[t],2)))
        st[t].stats.starttime = st[t].stats.starttime-traveltime[t] # this is needed for record section. not for the stacking
     st.write(name + 'after_' + str(vel[v]) + '.mseed', format="MSEED")  
-    #func.plotRecordSection(st,distance,name,vel[v]) #record section plot after tt correction
-    func_new.plotRecordSection(st,azimuth,name,vel[v]) #record section plot after tt correction
+    func_new.plotRecordSection(st,distance,name,vel[v]) #record section plot after tt correction
+#    func_new.plotRecordSection(st,azimuth,name,vel[v]) #record section plot after tt correction
     #STACK
     st.normalize()
     npts_all = [len(tr) for tr in st]
