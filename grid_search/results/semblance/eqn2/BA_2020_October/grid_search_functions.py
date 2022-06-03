@@ -114,7 +114,7 @@ def prepwaveforms(stafile,datetime,duration):
         if not is_all_zero:
       #  if tr.data != []: #creating empty traces didn't work because mseed doesn't save them. 
             tr.remove_response(output='DISP')
-    st.write('before_ts_wfs.mseed', format="MSEED")  
+    st.write('before_stack_wfs.mseed', format="MSEED")  
 
 #REMAINING
 # This code should include whatever pre-processing is required before stacking (gap filling,resampling, …)
@@ -122,119 +122,87 @@ def prepwaveforms(stafile,datetime,duration):
 #do we need to get longer duration traces for instrument response? ask Mike. 
 
 ####################################################################################################################################################################################
-#locmethod
-#This code includes different location methodologies that the locate function calls.
-####################################################################################################################################################################################
-
-def locmethod(st,method=1):
-    print(st)
-    if method ==1 or method == 2:
-        st.normalize()
-    npts_all = [len(tr) for tr in st]
-    npts = min(npts_all)
-    data = np.array([tr.data[:npts] for tr in st])
-    np.savetxt("data", data) #for testing purposes    
-    nots = data.shape[1] #number of time samples
-    noss = data.shape[0] # same with nos = len(st), using this for consistency 
-    if method == 1: #amplitude stacking  
-        name = "Amplitude stacking"
-        print("Location method: ",name)
-        stack = np.mean(data, axis=0)
-        trs = Trace() #save stack as a trace
-        trs.data=stack
-        trs.stats.starttime=st[0].stats.starttime 
-        trs.stats.station = "STCK"
-        trs.stats.sampling_rate = 50 
-        st += trs
-        maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
-    if method == 2: #amplitude envelope stacking, add envelope - this method does not work yet!!
-        name = "Envelope stacking"
-        print("Location method: ",name)
-        stack = np.mean(data, axis=0)
-        trs = Trace() #save stack as a trace
-        trs.data=stack
-        trs.stats.starttime=st[0].stats.starttime 
-        trs.stats.station = "STCK"
-        trs.stats.sampling_rate = 50 
-        st += trs
-        maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
-    if method == 3: #semblance equation #1
-        name = "Semblance eqn #1"
-        print("Location method: ",name)
-        snum = np.zeros((1, nots)) #semblance eqn numerator
-        sden = np.zeros((1, nots)) # semblance eqn denumerator
-        for ts in range(nots):
-           sem1 = np.square(np.sum(data[:,ts]))
-           snum[0,ts] = sem1
-        sumn = np.sum(snum) #sum of numerator
-        for ts in range(nots):
-           sem2= np.sum(np.square(data[:,ts]))
-           sden[0,ts] = sem2
-        sumd = noss * np.sum(sden) #sum of denumerator
-        maxpower = np.divide(sumn,sumd) #i.e. semblance
-        #print(maxpower)
-    if method == 4: #semblance equation #2
-        name = "Semblance eqn #2"
-        print("Location method: ",name)
-        sigm = np.zeros((noss, 1)) # sigma
-        sden = np.zeros((1, nots)) # semblance eqn denumerator
-        for s in range(noss):
-           sig = np.sqrt((1/nots)*(np.sum(np.square(data[s,:]))))
-           sigm[s,0] = sig
-        #print(data[:,0]/sigm[:,0])
-        for ts in range(nots):
-           sem1= np.square(np.sum(data[:,ts]/sigm[:,0]))
-           sden[0,ts] = sem1
-        maxpower = 1/(nots * np.square(noss)) * np.sum(sden) #i.e. semblance
-        print(maxpower)
-#    if method == 5: #semblance equation #3
-#        name = "Semblance eqn #3"
-#       print("Location method: ",name)
-    return maxpower
-
-
-
-####################################################################################################################################################################################
 #shiftstack
 #This code iterates through the i x j grid of source locations. For each grid point the code shifts and stacks waveforms using the pre-computed travel times. For each grid point, some type of stack amplitude measure is retained. Eventually this function should also include an estimate of the location error (perhaps based on the second derivative at the stack maximum?) This is a core computational function that users should not be tweaking. 
 ####################################################################################################################################################################################
 
 
-def locate(ttgridfile,before_ts_wfs,lonlatgridfile,method=1):
+def shiftstack(ttgridfile,before_stack_wfs,lonlatgridfile):
     df =  pd.DataFrame(columns = ['latitude','longitude','spower'])
     ttgrid = np.load(ttgridfile)
     lonlen = ttgrid.shape[0]
     latlen = ttgrid.shape[1]
+#    lonlen = 2
+#    latlen = 2
     lonlatgrid = np.load(lonlatgridfile)
-    strength = np.zeros((lonlen, latlen)) 
+    stacked_strength = np.zeros((lonlen, latlen)) 
     maxpowerall = 0
-#   stmaxpower = Stream() #initial stream to store maxpower stack  - needs to be moved to stacking functions to plot stacked trace
+    stmaxpower = Stream() #initial stream to store max power stack
     for i in range(lonlen):
         for j in range(latlen):
             st = Stream() #initial stream
-            st = read(before_ts_wfs)
+            st = read(before_stack_wfs)
             nos = len(st) #number of stations in the stream
             for s in range(nos):
                 maxtt = np.max(ttgrid[i,j,:])
                 st[s].trim((st[s].stats.starttime+np.around(ttgrid[i,j,s],2)),(np.around(maxtt-ttgrid[i,j,s],2))) #does maxtt needed???
                 st[s].stats.starttime = st[s].stats.starttime-ttgrid[i,j,s] # this is needed for record section. not for the stacking
-            maxpower = locmethod(st,method)                 
-            strength[i,j] = maxpower #save to traveltime table
-            if maxpower > maxpowerall:
-             #  stmaxpower = st.copy()   #needs to be moved to stacking functions to plot stacked trace
-               maxpowerall = maxpower
+            #st.normalize()
+            print(st)
+            npts_all = [len(tr) for tr in st]
+            npts = min(npts_all)
+            data = np.array([tr.data[:npts] for tr in st])
+            np.savetxt("data", data)           
+            nots = data.shape[1] #number of time samples
+            sden = np.zeros((1, nots)) # semblance eqn denumerator
+            ###for ts in range(nots):
+            ###   sem1 = np.square(np.sum(data[:,ts]))
+            ###   snum[0,ts] = sem1
+            ###print(snum)
+            ###semn = np.sum(snum)
+            ###print(semn)
+            ###for ts in range(nots):
+            ###   sem2= np.sum(np.square(data[:,ts]))
+            ###   sden[0,ts] = sem2
+            ###semd = nos * np.sum(sden)
+            ###semb = np.divide(semn,semd)
+            ###print(semb)
+            sigm = np.zeros((nos, 1)) # semblance eqn denumerator
+            for s in range(nos):
+               sig = np.sqrt((1/nots)*(np.sum(np.square(data[s,:]))))
+               sigm[s,0] = sig
+#            print(data[:,0]/sigm[:,0])
+            for ts in range(nots):
+               sem1= np.square(np.sum(data[:,ts]/sigm[:,0]))
+               sden[0,ts] = sem1
+            semb = 1/(nots * np.square(nos)) * np.sum(sden)
+            print(semb)
+           # print(semb)
+            ##stack = np.mean(data, axis=0)
+            ##trs = Trace() #save stack as a trace
+            ##trs.data=stack
+            ##trs.stats.starttime=st[0].stats.starttime 
+            ##trs.stats.station = "STCK"
+            ##trs.stats.sampling_rate = 50 
+            ##st += trs
+            #maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
+            stacked_strength[i,j] = semb #save to traveltime table
+            if semb > maxpowerall:
+             #  stmaxpower = st.copy()
+               maxpowerall = semb
             else: 
                continue
-  #  stmaxpower.write('best_stack_wfs.mseed', format="MSEED")   #needs to be moved to stacking functions to plot stacked trace
+  #  stmaxpower.write('best_stack_wfs.mseed', format="MSEED")  
+    #maxpowerall = np.max(np.abs(stacked_strength))
     print(maxpowerall)
-    maxinx=np.where(strength == maxpowerall)
+    maxinx=np.where(stacked_strength == maxpowerall)
     cordinx = list(zip(maxinx[0], maxinx[1]))
     for cord in cordinx:
         evlat = lonlatgrid[0][cord]
         evlon = lonlatgrid[1][cord]
-    location=evlat,evlon,maxpowerall
-    df.loc[0] = location 
+    stacked_location=evlat,evlon,maxpowerall
+    df.loc[0] = stacked_location 
     print(df)
-    df.to_csv('locfile.csv',index=False)
-    np.save("strengthfile", strength)
-#    np.savetxt("strengthfile", strength,delimiter=',', newline="\n")  #not sure if this is needed, .npy version is being used in plotting codes. 
+    df.to_csv('stacked_locfile.csv',index=False)
+    np.save("stacked_strengthfile", stacked_strength)
+    np.savetxt("stacked_strengthfile", stacked_strength,delimiter=',', newline="\n")  
