@@ -8,6 +8,7 @@ from obspy.clients.fdsn.header import FDSNNoDataException
 from obspy import Stream
 from obspy import Trace
 from obspy import read, read_inventory
+from obspy.signal.filter import envelope
 import numpy as np
 from numpy import loadtxt
 import pandas as pd
@@ -128,11 +129,14 @@ def prepwaveforms(stafile,datetime,duration):
 
 def locmethod(st,method=1):
     print(st)
-    if method ==1 or method == 2:
+    if method ==1 or method == 2: 
         st.normalize()
     npts_all = [len(tr) for tr in st]
     npts = min(npts_all)
-    data = np.array([tr.data[:npts] for tr in st])
+    if method ==2: 
+        data = np.array([envelope(tr.data[:npts]) for tr in st])
+    else:
+        data = np.array([tr.data[:npts] for tr in st])
     np.savetxt("data", data) #for testing purposes    
     nots = data.shape[1] #number of time samples
     noss = data.shape[0] # same with nos = len(st), using this for consistency 
@@ -147,6 +151,7 @@ def locmethod(st,method=1):
         trs.stats.sampling_rate = 50 
         st += trs
         maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
+        print(maxpower)
     if method == 2: #amplitude envelope stacking, add envelope - this method does not work yet!!
         name = "Envelope stacking"
         print("Location method: ",name)
@@ -158,6 +163,7 @@ def locmethod(st,method=1):
         trs.stats.sampling_rate = 50 
         st += trs
         maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
+        print(maxpower)
     if method == 3: #semblance equation #1
         name = "Semblance eqn #1"
         print("Location method: ",name)
@@ -172,7 +178,7 @@ def locmethod(st,method=1):
            sden[0,ts] = sem2
         sumd = noss * np.sum(sden) #sum of denumerator
         maxpower = np.divide(sumn,sumd) #i.e. semblance
-        #print(maxpower)
+        print(maxpower)
     if method == 4: #semblance equation #2
         name = "Semblance eqn #2"
         print("Location method: ",name)
@@ -187,9 +193,24 @@ def locmethod(st,method=1):
            sden[0,ts] = sem1
         maxpower = 1/(nots * np.square(noss)) * np.sum(sden) #i.e. semblance
         print(maxpower)
-#    if method == 5: #semblance equation #3
-#        name = "Semblance eqn #3"
-#       print("Location method: ",name)
+    if method == 5: #semblance equation #3
+        name = "Semblance eqn Ripepe"
+        print("Location method: ",name)
+        osum = np.zeros((noss-1)) #inner summation
+        for i in range(noss-1): #should lead (noss!/2!*(noss-2)!) combinations, e.g. for 12 traces = 66 combinations
+###            print("i=",i)
+            gamma = np.zeros((noss)) #fix this range, it works but could be better
+            for j in range(i+1, noss):
+              # print("j=",j)
+               ### print(st[i].stats.station,st[j].stats.station)
+               cov1 = np.cov(data[i,:],data[j,:])
+               cov = cov1[1,0]
+               std = np.std(data[i,:])*np.std(data[j,:])
+               gamma[j] = np.divide(cov,std)
+            isum = np.sum(gamma) #inner summation
+            osum[i] = isum # outer summation
+        maxpower = np.divide(np.sum(osum),np.sum(range(1,noss))) #range (1,noss) means 1,2,3,4,5,6,7,8,9,10,11 i.e. noss-1
+        print(maxpower)
     return maxpower
 
 
@@ -205,6 +226,8 @@ def locate(ttgridfile,before_ts_wfs,lonlatgridfile,method=1):
     ttgrid = np.load(ttgridfile)
     lonlen = ttgrid.shape[0]
     latlen = ttgrid.shape[1]
+#    lonlen = 1
+#   latlen = 1
     lonlatgrid = np.load(lonlatgridfile)
     strength = np.zeros((lonlen, latlen)) 
     maxpowerall = 0
