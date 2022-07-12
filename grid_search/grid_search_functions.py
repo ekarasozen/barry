@@ -13,6 +13,9 @@ import numpy as np
 from numpy import loadtxt
 import pandas as pd
 import matplotlib.pyplot as plt
+from pyproj import Geod
+import time
+
 
 ####################################################################################################################################################################################
 #makestalist
@@ -20,6 +23,7 @@ import matplotlib.pyplot as plt
 ####################################################################################################################################################################################
 
 def makestalist(network,station,channel,location,datetime):
+    start_time = time.time()
     df =  pd.DataFrame(columns = ['network','station','channel','location','latitude','longitude','elevation'])
     starttime = UTCDateTime(datetime)  
     inv = client.get_stations(network=network,station=station,channel=channel,location=location,starttime=starttime,level='response')
@@ -43,6 +47,7 @@ def makestalist(network,station,channel,location,datetime):
 #            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations if more than one network is needed. 
     print(df)
     df.to_csv('stafile.csv',index=False)
+    print("--- %s seconds ---" % (time.time() - start_time))
    # inv.write("station.xml",format="STATIONXML") #need in prepwaveforms to attach response to blank races
    
 
@@ -51,8 +56,10 @@ def makestalist(network,station,channel,location,datetime):
 #This code defines a grid of source locations and pre-computes travel times from each source to all stations. This is a core computational function that users should not need to alter. 
 
 def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
+    start_time = time.time()
     df = pd.read_csv(stafile,index_col=None,keep_default_na=False)
     nos = len(df) #number of stations
+    g = Geod(ellps='WGS84')
     station = df['station']
     stalat = df['latitude']
     stalon = df['longitude']
@@ -65,9 +72,11 @@ def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
     for s in range(nos):
         for j in range(len(yy)):
             for i in range(len(xx[0])):
-                dist=client_distaz.distaz(stalat[s],stalon[s],yy[j,i],xx[j,i])    
-                distdeg = dist['distance']
-                distm = dist['distancemeters']
+                #dist=client_distaz.distaz(stalat[s],stalon[s],yy[j,i],xx[j,i])
+                azimuth1, azimuth2, distance_2d = g.inv(stalon[s], stalat[s], xx[j,i], yy[j,i]) 
+                distm = distance_2d
+                #distdeg = dist['distance']
+                #distm = dist['distancemeters']
                 distkm = float(distm)/1000
                 distgrid[j,i,s] = distkm #distances are saved in meters
                 tt = np.divide(float(distkm),float(wavespeed)) #calculate the traveltime
@@ -75,6 +84,7 @@ def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
     np.save("distgridfile", distgrid)  
     np.save("ttgridfile", ttgrid)  
     np.save("lonlatgridfile", lonlatgrid)
+    print("--- %s seconds ---" % (time.time() - start_time))
 #    np.savetxt("lonlatgrid", latlongrid,delimiter=',', newline="\n")  
     
 ####################################################################################################################################################################################
@@ -83,6 +93,7 @@ def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
 ####################################################################################################################################################################################
 
 def prepwaveforms(stafile,datetime,duration):
+    start_time = time.time()
     s1 = UTCDateTime(datetime)  
     st = Stream() #initial stream
     df = pd.read_csv(stafile,index_col=None,keep_default_na=False)
@@ -116,6 +127,7 @@ def prepwaveforms(stafile,datetime,duration):
       #  if tr.data != []: #creating empty traces didn't work because mseed doesn't save them. 
             tr.remove_response(output='DISP')
     st.write('before_ts_wfs.mseed', format="MSEED")  
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 #REMAINING
 # This code should include whatever pre-processing is required before stacking (gap filling,resampling, …)
@@ -137,7 +149,7 @@ def locmethod(st,method=1):
         data = np.array([envelope(tr.data[:npts]) for tr in st])
     else:
         data = np.array([tr.data[:npts] for tr in st])
-    np.savetxt("data", data) #for testing purposes    
+    #np.savetxt("data", data) #for testing purposes    
     nots = data.shape[1] #number of time samples
     noss = data.shape[0] # same with nos = len(st), using this for consistency 
     if method == 1: #amplitude stacking  
@@ -196,9 +208,8 @@ def locmethod(st,method=1):
     if method == 5: #semblance equation #3
         name = "Semblance eqn Ripepe"
         print("Location method: ",name)
-        osum = np.zeros((noss-1)) #inner summation
+        osum = np.zeros((noss-1)) #outer summation
         for i in range(noss-1): #should lead (noss!/2!*(noss-2)!) combinations, e.g. for 12 traces = 66 combinations
-###            print("i=",i)
             gamma = np.zeros((noss)) #fix this range, it works but could be better
             for j in range(i+1, noss):
               # print("j=",j)
@@ -214,7 +225,6 @@ def locmethod(st,method=1):
     return maxpower
 
 
-
 ####################################################################################################################################################################################
 #shiftstack
 #This code iterates through the i x j grid of source locations. For each grid point the code shifts and stacks waveforms using the pre-computed travel times. For each grid point, some type of stack amplitude measure is retained. Eventually this function should also include an estimate of the location error (perhaps based on the second derivative at the stack maximum?) This is a core computational function that users should not be tweaking. 
@@ -222,12 +232,13 @@ def locmethod(st,method=1):
 
 
 def locate(ttgridfile,before_ts_wfs,lonlatgridfile,method=1):
-    df =  pd.DataFrame(columns = ['latitude','longitude','spower'])
+    start_time = time.time()
+    df =  pd.DataFrame(columns = ['latitude','longitude','spower','rtime'])
     ttgrid = np.load(ttgridfile)
     lonlen = ttgrid.shape[0]
     latlen = ttgrid.shape[1]
 #    lonlen = 1
-#   latlen = 1
+#    latlen = 1
     lonlatgrid = np.load(lonlatgridfile)
     strength = np.zeros((lonlen, latlen)) 
     maxpowerall = 0
@@ -255,9 +266,12 @@ def locate(ttgridfile,before_ts_wfs,lonlatgridfile,method=1):
     for cord in cordinx:
         evlat = lonlatgrid[0][cord]
         evlon = lonlatgrid[1][cord]
-    location=evlat,evlon,maxpowerall
+    print(cordinx)
+    rtime = (time.time() - start_time)
+    location=evlat,evlon,maxpowerall,rtime
     df.loc[0] = location 
     print(df)
+    print("--- %s seconds ---" % (time.time() - start_time))
     df.to_csv('locfile.csv',index=False)
     np.save("strengthfile", strength)
 #    np.savetxt("strengthfile", strength,delimiter=',', newline="\n")  #not sure if this is needed, .npy version is being used in plotting codes. 

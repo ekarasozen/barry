@@ -8,10 +8,14 @@ from obspy.clients.fdsn.header import FDSNNoDataException
 from obspy import Stream
 from obspy import Trace
 from obspy import read, read_inventory
+from obspy.signal.filter import envelope
 import numpy as np
 from numpy import loadtxt
 import pandas as pd
 import matplotlib.pyplot as plt
+from pyproj import Geod
+import time
+
 
 ####################################################################################################################################################################################
 #makestalist
@@ -19,6 +23,7 @@ import matplotlib.pyplot as plt
 ####################################################################################################################################################################################
 
 def makestalist(network,station,channel,location,datetime):
+    start_time = time.time()
     df =  pd.DataFrame(columns = ['network','station','channel','location','latitude','longitude','elevation'])
     starttime = UTCDateTime(datetime)  
     inv = client.get_stations(network=network,station=station,channel=channel,location=location,starttime=starttime,level='response')
@@ -42,6 +47,7 @@ def makestalist(network,station,channel,location,datetime):
 #            df.loc[s+(i*5)] = data # 5 is hardwired here. need to figure out a way to get total number of stations if more than one network is needed. 
     print(df)
     df.to_csv('stafile.csv',index=False)
+    print("--- %s seconds ---" % (time.time() - start_time))
    # inv.write("station.xml",format="STATIONXML") #need in prepwaveforms to attach response to blank races
    
 
@@ -50,8 +56,10 @@ def makestalist(network,station,channel,location,datetime):
 #This code defines a grid of source locations and pre-computes travel times from each source to all stations. This is a core computational function that users should not need to alter. 
 
 def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
+    start_time = time.time()
     df = pd.read_csv(stafile,index_col=None,keep_default_na=False)
     nos = len(df) #number of stations
+    g = Geod(ellps='WGS84')
     station = df['station']
     stalat = df['latitude']
     stalon = df['longitude']
@@ -64,9 +72,11 @@ def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
     for s in range(nos):
         for j in range(len(yy)):
             for i in range(len(xx[0])):
-                dist=client_distaz.distaz(stalat[s],stalon[s],yy[j,i],xx[j,i])    
-                distdeg = dist['distance']
-                distm = dist['distancemeters']
+                #dist=client_distaz.distaz(stalat[s],stalon[s],yy[j,i],xx[j,i])
+                azimuth1, azimuth2, distance_2d = g.inv(stalon[s], stalat[s], xx[j,i], yy[j,i]) 
+                distm = distance_2d
+                #distdeg = dist['distance']
+                #distm = dist['distancemeters']
                 distkm = float(distm)/1000
                 distgrid[j,i,s] = distkm #distances are saved in meters
                 tt = np.divide(float(distkm),float(wavespeed)) #calculate the traveltime
@@ -74,6 +84,7 @@ def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
     np.save("distgridfile", distgrid)  
     np.save("ttgridfile", ttgrid)  
     np.save("lonlatgridfile", lonlatgrid)
+    print("--- %s seconds ---" % (time.time() - start_time))
 #    np.savetxt("lonlatgrid", latlongrid,delimiter=',', newline="\n")  
     
 ####################################################################################################################################################################################
@@ -82,6 +93,7 @@ def creategrid(lonmin,lonmax,lonnum,latmin,latmax,latnum,wavespeed,stafile):
 ####################################################################################################################################################################################
 
 def prepwaveforms(stafile,datetime,duration):
+    start_time = time.time()
     s1 = UTCDateTime(datetime)  
     st = Stream() #initial stream
     df = pd.read_csv(stafile,index_col=None,keep_default_na=False)
@@ -115,6 +127,7 @@ def prepwaveforms(stafile,datetime,duration):
       #  if tr.data != []: #creating empty traces didn't work because mseed doesn't save them. 
             tr.remove_response(output='DISP')
     st.write('before_ts_wfs.mseed', format="MSEED")  
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 #REMAINING
 # This code should include whatever pre-processing is required before stacking (gap filling,resampling, …)
@@ -128,15 +141,20 @@ def prepwaveforms(stafile,datetime,duration):
 
 def locmethod(st,method=1):
     print(st)
-    #st.normalize() NEED TO INTEGRATE THIS INTO STACK METHODS SOMEHOW
+    if method ==1 or method == 2: 
+        st.normalize()
     npts_all = [len(tr) for tr in st]
     npts = min(npts_all)
-    data = np.array([tr.data[:npts] for tr in st])
-    np.savetxt("data", data) #for testing purposes    
+    if method ==2: 
+        data = np.array([envelope(tr.data[:npts]) for tr in st])
+    else:
+        data = np.array([tr.data[:npts] for tr in st])
+    #np.savetxt("data", data) #for testing purposes    
     nots = data.shape[1] #number of time samples
-    print(data.shape[0])
-    nos = len(st) #number of stations in the stream (i.e. number of channels/stations)     
+    noss = data.shape[0] # same with nos = len(st), using this for consistency 
     if method == 1: #amplitude stacking  
+        name = "Amplitude stacking"
+        print("Location method: ",name)
         stack = np.mean(data, axis=0)
         trs = Trace() #save stack as a trace
         trs.data=stack
@@ -145,7 +163,10 @@ def locmethod(st,method=1):
         trs.stats.sampling_rate = 50 
         st += trs
         maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
-    if method == 2: #amplitude envelope stacking, add envelope!
+        print(maxpower)
+    if method == 2: #amplitude envelope stacking, add envelope - this method does not work yet!!
+        name = "Envelope stacking"
+        print("Location method: ",name)
         stack = np.mean(data, axis=0)
         trs = Trace() #save stack as a trace
         trs.data=stack
@@ -154,7 +175,10 @@ def locmethod(st,method=1):
         trs.stats.sampling_rate = 50 
         st += trs
         maxpower = np.max(np.abs(stack)) #max of the abs value of the stack
+        print(maxpower)
     if method == 3: #semblance equation #1
+        name = "Semblance eqn #1"
+        print("Location method: ",name)
         snum = np.zeros((1, nots)) #semblance eqn numerator
         sden = np.zeros((1, nots)) # semblance eqn denumerator
         for ts in range(nots):
@@ -164,24 +188,41 @@ def locmethod(st,method=1):
         for ts in range(nots):
            sem2= np.sum(np.square(data[:,ts]))
            sden[0,ts] = sem2
-        sumd = nos * np.sum(sden) #sum of denumerator
+        sumd = noss * np.sum(sden) #sum of denumerator
         maxpower = np.divide(sumn,sumd) #i.e. semblance
-        #print(maxpower)
-    if method == 3: #semblance equation #2
-        sigm = np.zeros((nos, 1)) # sigma
+        print(maxpower)
+    if method == 4: #semblance equation #2
+        name = "Semblance eqn #2"
+        print("Location method: ",name)
+        sigm = np.zeros((noss, 1)) # sigma
         sden = np.zeros((1, nots)) # semblance eqn denumerator
-        for s in range(nos):
+        for s in range(noss):
            sig = np.sqrt((1/nots)*(np.sum(np.square(data[s,:]))))
            sigm[s,0] = sig
         #print(data[:,0]/sigm[:,0])
         for ts in range(nots):
            sem1= np.square(np.sum(data[:,ts]/sigm[:,0]))
            sden[0,ts] = sem1
-        maxpower = 1/(nots * np.square(nos)) * np.sum(sden) #i.e. semblance
+        maxpower = 1/(nots * np.square(noss)) * np.sum(sden) #i.e. semblance
         print(maxpower)
-#    if method == 4: #semblance equation #3
+    if method == 5: #semblance equation #3
+        name = "Semblance eqn Ripepe"
+        print("Location method: ",name)
+        osum = np.zeros((noss-1)) #outer summation
+        for i in range(noss-1): #should lead (noss!/2!*(noss-2)!) combinations, e.g. for 12 traces = 66 combinations
+            gamma = np.zeros((noss)) #fix this range, it works but could be better
+            for j in range(i+1, noss):
+              # print("j=",j)
+               ### print(st[i].stats.station,st[j].stats.station)
+               cov1 = np.cov(data[i,:],data[j,:])
+               cov = cov1[1,0]
+               std = np.std(data[i,:])*np.std(data[j,:])
+               gamma[j] = np.divide(cov,std)
+            isum = np.sum(gamma) #inner summation
+            osum[i] = isum # outer summation
+        maxpower = np.divide(np.sum(osum),np.sum(range(1,noss))) #range (1,noss) means 1,2,3,4,5,6,7,8,9,10,11 i.e. noss-1
+        print(maxpower)
     return maxpower
-
 
 
 ####################################################################################################################################################################################
@@ -190,15 +231,18 @@ def locmethod(st,method=1):
 ####################################################################################################################################################################################
 
 
-def shiftstack(ttgridfile,before_ts_wfs,lonlatgridfile,method=3):
-    df =  pd.DataFrame(columns = ['latitude','longitude','spower'])
+def locate(ttgridfile,before_ts_wfs,lonlatgridfile,method=1):
+    start_time = time.time()
+    df =  pd.DataFrame(columns = ['latitude','longitude','spower','rtime'])
     ttgrid = np.load(ttgridfile)
     lonlen = ttgrid.shape[0]
     latlen = ttgrid.shape[1]
+#    lonlen = 1
+#    latlen = 1
     lonlatgrid = np.load(lonlatgridfile)
     strength = np.zeros((lonlen, latlen)) 
     maxpowerall = 0
-#   stmaxpower = Stream() #initial stream to store maxpower stack   #needs to go to stacking functions to plot stacked trace
+#   stmaxpower = Stream() #initial stream to store maxpower stack  - needs to be moved to stacking functions to plot stacked trace
     for i in range(lonlen):
         for j in range(latlen):
             st = Stream() #initial stream
@@ -211,20 +255,23 @@ def shiftstack(ttgridfile,before_ts_wfs,lonlatgridfile,method=3):
             maxpower = locmethod(st,method)                 
             strength[i,j] = maxpower #save to traveltime table
             if maxpower > maxpowerall:
-             #  stmaxpower = st.copy()   #needs to go to stacking functions to plot stacked trace
+             #  stmaxpower = st.copy()   #needs to be moved to stacking functions to plot stacked trace
                maxpowerall = maxpower
             else: 
                continue
-  #  stmaxpower.write('best_stack_wfs.mseed', format="MSEED")   #needs to go to stacking functions to plot stacked trace
+  #  stmaxpower.write('best_stack_wfs.mseed', format="MSEED")   #needs to be moved to stacking functions to plot stacked trace
     print(maxpowerall)
     maxinx=np.where(strength == maxpowerall)
     cordinx = list(zip(maxinx[0], maxinx[1]))
     for cord in cordinx:
         evlat = lonlatgrid[0][cord]
         evlon = lonlatgrid[1][cord]
-    location=evlat,evlon,maxpowerall
+    print(cordinx)
+    rtime = (time.time() - start_time)
+    location=evlat,evlon,maxpowerall,rtime
     df.loc[0] = location 
     print(df)
+    print("--- %s seconds ---" % (time.time() - start_time))
     df.to_csv('locfile.csv',index=False)
     np.save("strengthfile", strength)
-    np.savetxt("strengthfile", strength,delimiter=',', newline="\n")  
+#    np.savetxt("strengthfile", strength,delimiter=',', newline="\n")  #not sure if this is needed, .npy version is being used in plotting codes. 

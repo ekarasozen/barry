@@ -6,7 +6,7 @@ gtevlat=61.153 #BA October 5 2020
 gtevlon=-148.163 #BA October 5 2020
 
 stdf = pd.read_csv("stafile.csv",index_col=None,keep_default_na=False)
-evdf = pd.read_csv("stacked_locfile.csv",index_col=None,keep_default_na=False)
+evdf = pd.read_csv("locfile.csv",index_col=None,keep_default_na=False)
 
 print(evdf)
 
@@ -23,7 +23,7 @@ val=str((lonmin+lonmax)/2)
 projection='S'+ val + '/90/8i'
 
 lonlatgrid = np.load("lonlatgridfile.npy")
-stacked_strength = np.load("stacked_strengthfile.npy")
+stacked_strength = np.load("strengthfile.npy")
 
 y= lonlatgrid[0]
 x= lonlatgrid[1]
@@ -41,7 +41,7 @@ ds = pygmt.xyz2grd(x=xx, y=yy, z=zz,region=region2, spacing=0.1)
 grid = pygmt.datasets.load_earth_relief(resolution="15s", region=region,)
 fig.basemap(region=region, projection=projection, frame=True)
 #fig.grdimage(grid=grid,projection=projection,cmap='grayC',shading='+a45+nt0.5',)
-fig.grdimage(grid="aec_zoomed.grd",projection=projection,cmap='gray_blue_AEC_simple.cpt',shading="+a45+nt0.5")
+fig.grdimage(grid="/Users/ezgikarasozen/Documents/GitHub/barry/grid_search/results/gmt_files/aec_zoomed.grd",projection=projection,cmap='/Users/ezgikarasozen/Documents/GitHub/barry/grid_search/results/gmt_files/gray_blue_AEC_simple.cpt',shading="+a45+nt0.5")
 
 pygmt.makecpt(cmap='hot',series='0/1/0.1',continuous=True,reverse=True,)
 fig.grdimage(grid=ds,projection=projection,cmap=True,transparency="30",)
