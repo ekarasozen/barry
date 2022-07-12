@@ -10,7 +10,7 @@ from pyproj import Geod
 
 
 g = Geod(ellps='WGS84')
-conf=0.90
+conf=0.90 #similar to 90 percent confidence ellipse estimation
 gtlat=61.153 #BA October 5 2020
 gtlon=-148.163 #BA October 5 2020
 
@@ -18,9 +18,7 @@ evdf = pd.read_csv("locfile.csv",index_col=None,keep_default_na=False)
 errdf =  pd.DataFrame(columns = ['spower','confidence','loc_error','threshold','err1','err2'])
 print(evdf.longitude[0])
 
-#longitude = -148.100006104
-#latitude = 61.1500015259
-#plot the entire map
+#first plot the entire grid with power
 fig, (ax) = plt.subplots(1,1)
 lonlatgrid = np.load("lonlatgridfile.npy")
 stacked_strength = np.load("strengthfile.npy")
@@ -33,17 +31,19 @@ ax110 = fig.add_axes([0.92, 0.11, 0.01, 0.77])
 fig.colorbar(im, cax=ax110)    
 fig.savefig('stacked_strength_map_' + str(conf) + '.png', bbox_inches='tight')
 
-
+#second, mask the data to show only the best location area (i.e. confidence ellipse)
 power = np.amax(stacked_strength)
 threshold = power*conf
-stacked_strength[stacked_strength < threshold] = np.NaN 
+stacked_strength[stacked_strength < threshold] = np.NaN #mask the data
 fig1, (ax1) = plt.subplots(1,1)
 
+#plot the entire masked grid with power  (including nan values)
 im1 = ax1.pcolormesh(xx,yy, stacked_strength,shading='nearest',cmap=cm.hot_r)
 ax111 = fig1.add_axes([0.92, 0.11, 0.01, 0.77])
 fig1.colorbar(im1, cax=ax111)    
 fig1.savefig('stacked_strength_nan_map_' +  str(conf) + '.png', bbox_inches='tight')
 
+#calculate the distance between minimum/maximum x and y points, convert to distance. 
 notnan = np.argwhere(~np.isnan(stacked_strength)) #get the indexes where there are numbers
 
 sub_lonlatgrid = [] #put those indexes into an array
@@ -54,7 +54,7 @@ for cord in cordinx:
     sub_lonlatgrid.append([lon,lat,cord[0],cord[1]])
 sub_lonlatgrid = np.array(sub_lonlatgrid)
 
-print(sub_lonlatgrid)
+#print(sub_lonlatgrid)
 
 maxx_inx=np.argwhere(sub_lonlatgrid == np.max(sub_lonlatgrid[:,0])) #maxx
 x1 = sub_lonlatgrid[maxx_inx[0][0]][0:2]
@@ -75,19 +75,16 @@ print(err1)
 azimuth2, azimuth2, distance_2d2 = g.inv(y1[0], y1[1], y2[0], y2[1])
 err2 = float(distance_2d2)/1000
 print(err2)
+#also calculate GT error - this is independent of the error calculation in this code: 
 azimuth3, azimuth3, distance_2d3 = g.inv(evdf.longitude[0],evdf.latitude[0],gtlon,gtlat)
 gterr = float(distance_2d3)/1000
 loc_error = power,conf,gterr,threshold,err1,err2
 errdf.loc[0] = loc_error 
-
 print(errdf)
-
 
 
 errdf.to_csv('locerror_' + str(conf) + '.csv',index=False)
 
-#make sure x1 calculations are ok. they usually have more than one result. should i take the average? 
-# make some plots? 
 
 minx = int(np.min(sub_lonlatgrid[:,2]))
 maxx = int(np.max(sub_lonlatgrid[:,2]))
@@ -96,6 +93,8 @@ maxy = int(np.max(sub_lonlatgrid[:,3]))
 sub_strength = stacked_strength[minx:maxx,miny:maxy]
 sub_yy= yy[minx:maxx,miny:maxy]
 sub_xx= xx[minx:maxx,miny:maxy]
+#plot the zoomed-in masked grid with power  (no nan values)
+
 fig2, (ax2) = plt.subplots(1,1)
 im2 = ax2.pcolormesh(sub_xx,sub_yy, sub_strength,shading='nearest',cmap=cm.hot_r)
 
